@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -52,7 +54,7 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WavySliderExpressive(
-    value: Float,
+    value: () -> Float,
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -86,15 +88,25 @@ fun WavySliderExpressive(
         Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
     }
 
-    val normalizedValue = if (valueRange.endInclusive == valueRange.start) 0f
-        else ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+    val normalizedValueState = remember(valueRange) {
+        derivedStateOf {
+            val v = value()
+            if (valueRange.endInclusive == valueRange.start) 0f
+            else ((v - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+        }
+    }
 
     val safeSemanticsStep = semanticsProgressStep.coerceIn(0.005f, 0.25f)
-    val semanticNormalizedValue = remember(normalizedValue, safeSemanticsStep) {
-        ((normalizedValue / safeSemanticsStep).roundToInt() * safeSemanticsStep).coerceIn(0f, 1f)
+    val semanticNormalizedValueState = remember(safeSemanticsStep) {
+        derivedStateOf {
+            val norm = normalizedValueState.value
+            ((norm / safeSemanticsStep).roundToInt() * safeSemanticsStep).coerceIn(0f, 1f)
+        }
     }
-    val semanticSliderValue = remember(semanticNormalizedValue, valueRange) {
-        valueRange.start + semanticNormalizedValue * (valueRange.endInclusive - valueRange.start)
+    val semanticSliderValueState = remember(valueRange) {
+        derivedStateOf {
+            valueRange.start + semanticNormalizedValueState.value * (valueRange.endInclusive - valueRange.start)
+        }
     }
     val latestOnValueChange by rememberUpdatedState(onValueChange)
     val latestOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
@@ -113,44 +125,65 @@ fun WavySliderExpressive(
         label = "amplitude"
     )
 
+    val currentHalfWidth = remember(thumbRadius, strokeWidth) {
+        derivedStateOf {
+            val fraction = thumbInteractionFraction
+            val radius = thumbRadius
+            val halfStroke = strokeWidth * 0.6f
+            radius * (1f - fraction) + halfStroke * fraction
+        }
+    }
+
+    val dynamicGapSize = remember {
+        derivedStateOf {
+            currentHalfWidth.value + 4.dp
+        }
+    }
+
     // Keep visual progress interpolation out of composition:
     // update this state on frame clock, then consume it only inside draw lambdas.
     // This preserves smooth visuals while avoiding high-frequency recompositions.
-    val renderedNormalizedProgress = remember { mutableFloatStateOf(normalizedValue) }
+    val renderedNormalizedProgress = remember {
+        val initialVal = value()
+        val initialNorm = if (valueRange.endInclusive == valueRange.start) 0f
+            else ((initialVal - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+        mutableFloatStateOf(initialNorm)
+    }
     var lastProgressUpdateNanos by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(normalizedValue, isInteracting, enabled) {
-        val target = normalizedValue.coerceIn(0f, 1f)
-        if (!enabled || isInteracting) {
+    LaunchedEffect(isInteracting, enabled) {
+        snapshotFlow { normalizedValueState.value }.collect { target ->
+            if (!enabled || isInteracting) {
+                renderedNormalizedProgress.floatValue = target
+                lastProgressUpdateNanos = System.nanoTime()
+                return@collect
+            }
+
+            val nowNanos = System.nanoTime()
+            val intervalMs = if (lastProgressUpdateNanos == 0L) {
+                180L
+            } else {
+                ((nowNanos - lastProgressUpdateNanos) / 1_000_000L).coerceAtLeast(1L)
+            }
+            lastProgressUpdateNanos = nowNanos
+
+            val start = renderedNormalizedProgress.floatValue
+            if (abs(start - target) <= 0.0001f) {
+                renderedNormalizedProgress.floatValue = target
+                return@collect
+            }
+
+            val durationNanos = (intervalMs * 900_000L).coerceAtLeast(1_000_000L)
+            var startFrameNanos = 0L
+            while (isActive) {
+                val frameNanos = withFrameNanos { it }
+                if (startFrameNanos == 0L) startFrameNanos = frameNanos
+                val elapsedNanos = (frameNanos - startFrameNanos).coerceAtLeast(0L)
+                val fraction = (elapsedNanos.toDouble() / durationNanos.toDouble()).toFloat().coerceIn(0f, 1f)
+                renderedNormalizedProgress.floatValue = start + (target - start) * fraction
+                if (fraction >= 1f) break
+            }
             renderedNormalizedProgress.floatValue = target
-            lastProgressUpdateNanos = System.nanoTime()
-            return@LaunchedEffect
         }
-
-        val nowNanos = System.nanoTime()
-        val intervalMs = if (lastProgressUpdateNanos == 0L) {
-            180L
-        } else {
-            ((nowNanos - lastProgressUpdateNanos) / 1_000_000L).coerceAtLeast(1L)
-        }
-        lastProgressUpdateNanos = nowNanos
-
-        val start = renderedNormalizedProgress.floatValue
-        if (abs(start - target) <= 0.0001f) {
-            renderedNormalizedProgress.floatValue = target
-            return@LaunchedEffect
-        }
-
-        val durationNanos = (intervalMs * 900_000L).coerceAtLeast(1_000_000L)
-        var startFrameNanos = 0L
-        while (isActive) {
-            val frameNanos = withFrameNanos { it }
-            if (startFrameNanos == 0L) startFrameNanos = frameNanos
-            val elapsedNanos = (frameNanos - startFrameNanos).coerceAtLeast(0L)
-            val fraction = (elapsedNanos.toDouble() / durationNanos.toDouble()).toFloat().coerceIn(0f, 1f)
-            renderedNormalizedProgress.floatValue = start + (target - start) * fraction
-            if (fraction >= 1f) break
-        }
-        renderedNormalizedProgress.floatValue = target
     }
 
     val containerHeight = max(WavyProgressIndicatorDefaults.LinearContainerHeight, max(thumbRadius * 2, thumbLineHeightWhenInteracting))
@@ -164,7 +197,7 @@ fun WavySliderExpressive(
                     contentDescription = semanticsLabel
                 }
                 progressBarRangeInfo = ProgressBarRangeInfo(
-                    current = semanticSliderValue,
+                    current = semanticSliderValueState.value,
                     range = valueRange.start..valueRange.endInclusive,
                     steps = 0
                 )
@@ -180,23 +213,37 @@ fun WavySliderExpressive(
             },
         contentAlignment = Alignment.Center
     ) {
-        LinearWavyProgressIndicator(
-            progress = { renderedNormalizedProgress.floatValue },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = trackEdgePadding.coerceAtLeast(0.dp))
-                // Decorative layer: avoid duplicate semantics updates from the visual track.
-                .clearAndSetSemantics { },
-            color = activeTrackColor,
-            trackColor = inactiveTrackColor,
-            stroke = stroke,
-            trackStroke = stroke,
-            gapSize = thumbRadius + 4.dp,
-            stopSize = 3.dp,
-            amplitude = { progress -> if (progress > 0f) animatedAmplitude else 0f },
-            wavelength = wavelength,
-            waveSpeed = waveSpeed
-        )
+        if (isPlaying) {
+            LinearWavyProgressIndicator(
+                progress = { renderedNormalizedProgress.floatValue },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = trackEdgePadding.coerceAtLeast(0.dp))
+                    // Decorative layer: avoid duplicate semantics updates from the visual track.
+                    .clearAndSetSemantics { },
+                color = activeTrackColor,
+                trackColor = inactiveTrackColor,
+                stroke = stroke,
+                trackStroke = stroke,
+                gapSize = dynamicGapSize.value,
+                stopSize = 3.dp,
+                amplitude = { progress -> if (progress > 0f) animatedAmplitude else 0f },
+                wavelength = wavelength,
+                waveSpeed = waveSpeed
+            )
+        } else {
+            FlatTrackExpressive(
+                progress = { renderedNormalizedProgress.floatValue },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = trackEdgePadding.coerceAtLeast(0.dp))
+                    .clearAndSetSemantics { },
+                color = activeTrackColor,
+                trackColor = inactiveTrackColor,
+                strokeWidthPx = strokeWidthPx,
+                gapSize = { dynamicGapSize.value }
+            )
+        }
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val edgePaddingPx = trackEdgePaddingPx.coerceIn(0f, size.width / 2f)
@@ -280,5 +327,55 @@ fun WavySliderExpressive(
                     }
                 }
         )
+    }
+}
+
+@Composable
+private fun FlatTrackExpressive(
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+    color: Color,
+    trackColor: Color,
+    strokeWidthPx: Float,
+    gapSize: () -> Dp
+) {
+    val density = LocalDensity.current
+    
+    Canvas(modifier = modifier) {
+        val gapSizePx = with(density) { gapSize().toPx() }
+        val width = size.width
+        val height = size.height
+        val y = height / 2f
+        val currentProgress = progress()
+        
+        val halfStroke = strokeWidthPx / 2f
+        val trackStart = halfStroke
+        val trackEnd = width - halfStroke
+        val trackWidth = (trackEnd - trackStart).coerceAtLeast(0f)
+        val thumbX = trackStart + (trackWidth * currentProgress)
+        
+        // Active track
+        val activeEnd = (thumbX - gapSizePx).coerceIn(trackStart, trackEnd)
+        if (activeEnd > trackStart) {
+            drawLine(
+                color = color,
+                start = Offset(trackStart, y),
+                end = Offset(activeEnd, y),
+                strokeWidth = strokeWidthPx,
+                cap = StrokeCap.Round
+            )
+        }
+        
+        // Inactive track
+        val inactiveStart = (thumbX + gapSizePx).coerceIn(trackStart, trackEnd)
+        if (inactiveStart < trackEnd) {
+            drawLine(
+                color = trackColor,
+                start = Offset(inactiveStart, y),
+                end = Offset(trackEnd, y),
+                strokeWidth = strokeWidthPx,
+                cap = StrokeCap.Round
+            )
+        }
     }
 }

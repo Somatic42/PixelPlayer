@@ -19,6 +19,7 @@ private const val PREDICTIVE_BACK_SWIPE_EDGE_RIGHT = 1
 
 internal data class SheetVisualState(
     val currentBottomPadding: Dp,
+    val baseBottomPadding: Dp,
     /** Draw-phase provider: read this inside graphicsLayer to avoid layout relayout per frame. */
     val playerContentAreaHeightPxProvider: () -> Float,
     /** Layout-phase provider: read inside .offset { } to avoid recomposition per drag frame. */
@@ -48,28 +49,37 @@ internal fun rememberSheetVisualState(
     hasCurrentSong: Boolean,
     swipeDismissProgress: Float
 ): SheetVisualState {
+    // Compute in px to be read inside graphicsLayer (draw phase) — zero relayout per drag frame.
+    val density = LocalDensity.current
+    val baseBottomPadding = remember(containerHeight, sheetCollapsedTargetY, density) {
+        val targetYDp = with(density) { sheetCollapsedTargetY.toDp() }
+        (containerHeight - com.theveloper.pixelplay.presentation.components.MiniPlayerHeight - targetYDp)
+            .coerceAtLeast(0.dp)
+    }
+
     val currentBottomPadding by remember(
         showPlayerContentArea,
         collapsedStateHorizontalPadding,
         predictiveBackCollapseProgress,
-        currentSheetContentState
+        currentSheetContentState,
+        baseBottomPadding
     ) {
         derivedStateOf {
             if (predictiveBackCollapseProgress > 0f &&
                 showPlayerContentArea &&
                 currentSheetContentState == PlayerSheetState.EXPANDED
             ) {
-                lerp(0.dp, collapsedStateHorizontalPadding, predictiveBackCollapseProgress)
+                val backPadding = lerp(0.dp, collapsedStateHorizontalPadding, predictiveBackCollapseProgress)
+                baseBottomPadding + backPadding
             } else {
                 0.dp
             }
         }
     }
 
-    // Compute in px to be read inside graphicsLayer (draw phase) — zero relayout per drag frame.
-    val density = LocalDensity.current
     val miniHeightPx = remember(density) { with(density) { com.theveloper.pixelplay.presentation.components.MiniPlayerHeight.toPx() } }
     val containerHeightPx = remember(containerHeight, density) { with(density) { containerHeight.toPx() } }
+    val baseBottomPaddingPx = remember(baseBottomPadding, density) { with(density) { baseBottomPadding.toPx() } }
     val playerContentAreaHeightPxProvider: () -> Float = remember(
         showPlayerContentArea,
         playerContentExpansionFraction,
@@ -159,46 +169,44 @@ internal fun rememberSheetVisualState(
         navBarCornerRadiusDp
     ) {
         {
-            if (navBarStyle == NavBarStyle.FULL_WIDTH) {
-                val fraction = playerContentExpansionFraction.value
-                lerp(32.dp, 0.dp, fraction)
+            val collapsedRadius = if (navBarStyle == NavBarStyle.FULL_WIDTH) {
+                32.dp
+            } else if (isNavBarHidden) {
+                60.dp
             } else {
-                val calculatedNormally =
-                    if (predictiveBackCollapseProgress > 0f &&
-                        showPlayerContentArea &&
-                        currentSheetContentState == PlayerSheetState.EXPANDED
-                    ) {
-                        val expandedRadius = 0.dp
-                        val collapsedRadiusTarget = if (isNavBarHidden) 60.dp else 12.dp
-                        lerp(expandedRadius, collapsedRadiusTarget, predictiveBackCollapseProgress)
+                12.dp
+            }
+
+            val calculatedNormally =
+                if (predictiveBackCollapseProgress > 0f &&
+                    showPlayerContentArea &&
+                    currentSheetContentState == PlayerSheetState.EXPANDED
+                ) {
+                    val expandedCorner = 0.dp
+                    lerp(expandedCorner, collapsedRadius, predictiveBackCollapseProgress)
+                } else {
+                    if (showPlayerContentArea) {
+                        val fraction = playerContentExpansionFraction.value
+                        val expandedTarget = 0.dp
+                        lerp(collapsedRadius, expandedTarget, fraction)
                     } else {
-                        if (showPlayerContentArea) {
-                            val fraction = playerContentExpansionFraction.value
-                            val collapsedRadius = if (isNavBarHidden) 60.dp else 12.dp
-                            if (fraction < 0.2f) {
-                                lerp(collapsedRadius, 26.dp, (fraction / 0.2f).coerceIn(0f, 1f))
-                            } else {
-                                lerp(26.dp, 0.dp, ((fraction - 0.2f) / 0.8f).coerceIn(0f, 1f))
-                            }
+                        if (!isPlayingState.value || !hasCurrentSongState.value) {
+                            if (isNavBarHidden) 32.dp else navBarCornerRadiusDp
                         } else {
-                            if (!isPlayingState.value || !hasCurrentSongState.value) {
-                                if (isNavBarHidden) 32.dp else navBarCornerRadiusDp
-                            } else {
-                                if (isNavBarHidden) 32.dp else 12.dp
-                            }
+                            collapsedRadius
                         }
                     }
-
-                if (currentSheetContentState == PlayerSheetState.COLLAPSED &&
-                    swipeDismissProgress > 0f &&
-                    showPlayerContentArea &&
-                    playerContentExpansionFraction.value < 0.01f
-                ) {
-                    val baseCollapsedRadius = if (isNavBarHidden) 32.dp else 12.dp
-                    lerp(baseCollapsedRadius, navBarCornerRadiusDp, swipeDismissProgress)
-                } else {
-                    calculatedNormally
                 }
+
+            if (currentSheetContentState == PlayerSheetState.COLLAPSED &&
+                swipeDismissProgress > 0f &&
+                showPlayerContentArea &&
+                playerContentExpansionFraction.value < 0.01f
+            ) {
+                val baseCollapsedRadius = if (isNavBarHidden) 32.dp else 12.dp
+                lerp(baseCollapsedRadius, navBarCornerRadiusDp, swipeDismissProgress)
+            } else {
+                calculatedNormally
             }
         }
     }
@@ -273,6 +281,7 @@ internal fun rememberSheetVisualState(
 
     return SheetVisualState(
         currentBottomPadding = currentBottomPadding,
+        baseBottomPadding = baseBottomPadding,
         playerContentAreaHeightPxProvider = playerContentAreaHeightPxProvider,
         visualSheetTranslationYProvider = visualSheetTranslationYProvider,
         overallSheetTopCornerRadiusProvider = overallSheetTopCornerRadiusProvider,

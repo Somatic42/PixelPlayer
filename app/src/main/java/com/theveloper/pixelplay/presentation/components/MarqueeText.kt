@@ -36,10 +36,11 @@ fun AutoScrollingTextOnDemand(
     style: TextStyle,
     gradientEdgeColor: Color,
     expansionFractionProvider: () -> Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    canScroll: Boolean = true
 ) {
-    var overflow by remember { mutableStateOf(false) }
-    val canStart by remember { derivedStateOf { expansionFractionProvider() > 0.99f && overflow } }
+    var overflow by remember(text, style) { mutableStateOf(false) }
+    val canStart by remember(text, style, canScroll) { derivedStateOf { expansionFractionProvider() > 0.99f && overflow && canScroll } }
 
 
 // Usamos un Text "medidor" sólo la primera composición para detectar overflow.
@@ -58,7 +59,8 @@ fun AutoScrollingTextOnDemand(
             style = style,
             textAlign = TextAlign.Start,
             gradientEdgeColor = gradientEdgeColor,
-            modifier = modifier
+            modifier = modifier,
+            canScroll = canScroll
         )
     }
 }
@@ -71,7 +73,8 @@ fun AutoScrollingText(
     style: TextStyle,
     textAlign: TextAlign? = null,
     gradientEdgeColor: Color,
-    gradientWidth: Dp = 24.dp
+    gradientWidth: Dp = 24.dp,
+    canScroll: Boolean = true
 ) {
     SubcomposeLayout(modifier = modifier.clipToBounds()) { constraints ->
         val textPlaceable = subcompose("text") {
@@ -81,12 +84,12 @@ fun AutoScrollingText(
         val isOverflowing = textPlaceable.width > constraints.maxWidth
 
         val content = @Composable {
-            if (isOverflowing) {
-                val initialDelayMillis = 1500
+            if (isOverflowing && canScroll) {
+                val initialDelayMillis = 2000
                 val fadeAnimationDuration = 500
 
-                var isScrolling by remember { mutableStateOf(false) }
-                LaunchedEffect(Unit) {
+                var isScrolling by remember(text, canScroll) { mutableStateOf(false) }
+                LaunchedEffect(text, canScroll) {
                     isScrolling = false // Ensure initial state
                     kotlinx.coroutines.delay(initialDelayMillis.toLong())
                     isScrolling = true

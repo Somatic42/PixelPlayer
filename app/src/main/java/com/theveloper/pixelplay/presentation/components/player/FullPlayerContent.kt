@@ -580,7 +580,8 @@ fun FullPlayerContent(
             chipColor = playerOnAccentColor.copy(alpha = 0.8f),
             chipContentColor = playerAccentColor,
             onQueueClick = onSongMetadataQueueClick,
-            onArtistClick = onSongMetadataArtistClick
+            onArtistClick = onSongMetadataArtistClick,
+            isPlayingProvider = isPlayingProvider
         )
     }
 
@@ -602,7 +603,8 @@ fun FullPlayerContent(
             chipColor = playerOnAccentColor.copy(alpha = 0.8f),
             chipContentColor = playerAccentColor,
             onQueueClick = onSongMetadataQueueClick,
-            onArtistClick = onSongMetadataArtistClick
+            onArtistClick = onSongMetadataArtistClick,
+            isPlayingProvider = isPlayingProvider
         )
     }
 
@@ -1309,7 +1311,8 @@ private fun FullPlayerSongMetadataSection(
     chipColor: Color,
     chipContentColor: Color,
     onQueueClick: () -> Unit,
-    onArtistClick: () -> Unit
+    onArtistClick: () -> Unit,
+    isPlayingProvider: () -> Boolean = { true }
 ) {
     val shouldDelay = loadingTweaks.delayAll || loadingTweaks.delaySongMetadata
 
@@ -1353,7 +1356,8 @@ private fun FullPlayerSongMetadataSection(
             chipContentColor = chipContentColor,
             showQueueButton = isLandscape,
             onClickQueue = onQueueClick,
-            onClickArtist = onArtistClick
+            onClickArtist = onArtistClick,
+            isPlayingProvider = isPlayingProvider
         )
     }
 }
@@ -1452,7 +1456,8 @@ private fun SongMetadataDisplaySection(
     showQueueButton: Boolean,
     onClickQueue: () -> Unit,
     onClickArtist: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isPlayingProvider: () -> Boolean = { true }
 ) {
     Row(
         modifier
@@ -1475,7 +1480,8 @@ private fun SongMetadataDisplaySection(
                 onClickArtist = onClickArtist,
                 modifier = Modifier
                     .weight(1f)
-                    .align(Alignment.CenterVertically)
+                    .align(Alignment.CenterVertically),
+                isPlayingProvider = isPlayingProvider
             )
         }
         
@@ -1862,7 +1868,7 @@ private fun EfficientSlider(
     }
 
     WavySliderExpressive(
-        value = valueState.value,
+        value = { valueState.value },
         onValueChange = onValueChangeWithHaptics,
         onValueCommit = onValueCommit,
         interactionSource = interactionSource,
@@ -2124,7 +2130,8 @@ private fun PlayerSongInfo(
     gradientEdgeColor: Color,
     playerViewModel: PlayerViewModel,
     onClickArtist: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isPlayingProvider: () -> Boolean = { true }
 ) {
     val coroutineScope = rememberCoroutineScope()
     var isNavigatingToArtist by remember { mutableStateOf(false) }
@@ -2160,11 +2167,12 @@ private fun PlayerSongInfo(
         // If we want to avoid recomposition, we might need to pass the provider or just 1f if scrolling logic handles itself.
         // For now, let's pass the current value from provider for logic correctness, but ideally this component should be optimized too.
         AutoScrollingTextOnDemand(
-            title,
-            titleStyle,
-            gradientEdgeColor,
-            expansionFractionProvider,
-            modifier = Modifier.fillMaxWidth()
+            text = title,
+            style = titleStyle,
+            gradientEdgeColor = gradientEdgeColor,
+            expansionFractionProvider = expansionFractionProvider,
+            modifier = Modifier.fillMaxWidth(),
+            canScroll = isPlayingProvider()
         )
         Spacer(modifier = Modifier.height(2.dp))
 
@@ -2203,7 +2211,8 @@ private fun PlayerSongInfo(
                         }
                     }
                 }
-            )
+            ),
+            canScroll = isPlayingProvider()
         )
     }
 }
