@@ -673,9 +673,11 @@ class MusicRepositoryImpl @Inject constructor(
                         // "Rock, Pop" is returned when browsing either "Rock" or "Pop".
                         musicDao.getSongsByGenreContaining(
                             genreName = genreName,
-                            genrePrefix = "$genreName,%",   // "Rock, ..."  (first genre)
-                            genreSuffix = "%, $genreName",  // "..., Rock"  (last genre)
-                            genreMiddle = "%, $genreName,%",// "..., Rock, ..." (middle genre)
+                            genrePrefix = "$genreName,%",          // "Rock,..." / "Rock, ..."
+                            genreSuffixWithSpace = "%, $genreName", // "..., Rock"
+                            genreSuffix = "%,$genreName",          // "...,Rock"
+                            genreMiddleWithSpace = "%, $genreName,%", // "..., Rock,..."
+                            genreMiddle = "%,$genreName,%",        // "...,Rock,..."
                             allowedParentDirs = allowedParentDirs,
                             applyDirectoryFilter = applyDirectoryFilter
                         )

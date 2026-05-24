@@ -53,7 +53,28 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
+private val EMBEDDED_LYRICS_KEYS = listOf("LYRICS", "SYNCEDLYRICS", "TTML", "UNSYNCEDLYRICS")
+
 private fun Lyrics.isValid(): Boolean = !synced.isNullOrEmpty() || !plain.isNullOrEmpty()
+
+internal fun parseBestEmbeddedLyricsField(propertyMap: Map<String, Array<String>>?): Lyrics? {
+    var firstPlainLyrics: Lyrics? = null
+
+    EMBEDDED_LYRICS_KEYS.forEach { key ->
+        propertyMap?.get(key).orEmpty().forEach { field ->
+            if (field.isBlank()) return@forEach
+
+            val parsedLyrics = LyricsUtils.parseLyrics(field)
+            if (!parsedLyrics.isValid()) return@forEach
+
+            val localLyrics = parsedLyrics.copy(areFromRemote = false)
+            if (!localLyrics.synced.isNullOrEmpty()) return localLyrics
+            if (firstPlainLyrics == null) firstPlainLyrics = localLyrics
+        }
+    }
+
+    return firstPlainLyrics
+}
 
 /**
  * LyricsData for JSON disk cache (matches Rhythm's format)
@@ -1082,23 +1103,11 @@ class LyricsRepositoryImpl @Inject constructor(
                 ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
                     val metadata = TagLib.getMetadata(fd.detachFd())
                     val propertyMap = metadata?.propertyMap
-                    // Check all known tag keys that may carry lyrics content.
-                    // Priority order: LYRICS (standard + Apple ©lyr) → SYNCEDLYRICS
-                    // (used by some taggers for LRC) → TTML (explicit TTML key written
-                    // by some broadcast/streaming tools) → UNSYNCEDLYRICS (legacy).
-                    val lyricsField = propertyMap?.get("LYRICS")?.firstOrNull()
-                        ?: propertyMap?.get("SYNCEDLYRICS")?.firstOrNull()
-                        ?: propertyMap?.get("TTML")?.firstOrNull()
-                        ?: propertyMap?.get("UNSYNCEDLYRICS")?.firstOrNull()
+                    val parsedLyrics = parseBestEmbeddedLyricsField(propertyMap)
 
-                    if (!lyricsField.isNullOrBlank()) {
-                        val parsedLyrics = LyricsUtils.parseLyrics(lyricsField)
-                        if (parsedLyrics.isValid()) {
-                            Log.d(TAG, "===== FOUND EMBEDDED LYRICS =====")
-                            parsedLyrics.copy(areFromRemote = false)
-                        } else {
-                            null
-                        }
+                    if (parsedLyrics != null) {
+                        Log.d(TAG, "===== FOUND EMBEDDED LYRICS =====")
+                        parsedLyrics
                     } else {
                         null
                     }

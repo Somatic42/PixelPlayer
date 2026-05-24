@@ -1551,7 +1551,9 @@ interface MusicDao {
         AND (
             genre = :genreName
             OR genre LIKE :genrePrefix
+            OR genre LIKE :genreSuffixWithSpace
             OR genre LIKE :genreSuffix
+            OR genre LIKE :genreMiddleWithSpace
             OR genre LIKE :genreMiddle
         )
         ORDER BY title ASC
@@ -1559,7 +1561,9 @@ interface MusicDao {
     fun getSongsByGenreContaining(
         genreName: String,
         genrePrefix: String,
+        genreSuffixWithSpace: String,
         genreSuffix: String,
+        genreMiddleWithSpace: String,
         genreMiddle: String,
         allowedParentDirs: List<String>,
         applyDirectoryFilter: Boolean
