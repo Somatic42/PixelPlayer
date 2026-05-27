@@ -1091,4 +1091,14 @@ class PlaybackStateHolder @Inject constructor(
         }
     }
 
+    fun onCleared() {
+        stopProgressUpdates()
+        remoteSeekUnlockJob?.cancel()
+        remoteSeekUnlockJob = null
+        shuffleToggleJob?.cancel()
+        shuffleToggleJob = null
+        scope = null
+        onCastSeekBlocked = null
+    }
+
 }
