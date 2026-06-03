@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import com.theveloper.pixelplay.data.diagnostics.PerformanceMetrics
 import com.theveloper.pixelplay.data.media.AudioMetadataReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +71,39 @@ object AlbumArtUtils {
         }
     }
 
+    /**
+     * Lightweight scan-time artwork resolution.
+     *
+     * Full embedded-art extraction can allocate large ByteArrays per song. During a library scan
+     * we only store the stable lazy URI; the normal image-loading path extracts/caches artwork
+     * later for visible rows.
+     */
+    fun getAlbumArtUriForLibraryScan(
+        appContext: Context,
+        songId: Long,
+        forceRefresh: Boolean
+    ): String? {
+        val cachedFile = getCachedAlbumArtFile(appContext, songId)
+        val noArtFile = noArtMarkerFile(appContext, songId)
+
+        if (forceRefresh) {
+            cachedFile.delete()
+            noArtFile.delete()
+        }
+
+        val hasCachedArtwork = cachedFile.exists() && cachedFile.length() > 0
+        if (hasCachedArtwork) {
+            cachedFile.setLastModified(System.currentTimeMillis())
+        }
+
+        return resolveAlbumArtUriForLibraryScan(
+            songId = songId,
+            hasCachedArtwork = hasCachedArtwork,
+            hasNoArtworkMarker = noArtFile.exists(),
+            forceRefresh = forceRefresh
+        )
+    }
+
     fun getCachedAlbumArtUri(
         appContext: Context,
         songId: Long
@@ -115,11 +149,13 @@ object AlbumArtUtils {
         if (!forceRefresh) {
             if (cachedFile.exists() && cachedFile.length() > 0) {
                 cachedFile.setLastModified(System.currentTimeMillis())
+                PerformanceMetrics.increment(PerformanceMetrics.Counters.ARTWORK_CACHE_HIT)
                 return cachedFile
             }
             if (noArtFile.exists()) {
                 return null
             }
+            PerformanceMetrics.increment(PerformanceMetrics.Counters.ARTWORK_CACHE_MISS)
         } else {
             cachedFile.delete()
             noArtFile.delete()
@@ -394,6 +430,24 @@ object AlbumArtUtils {
     }
 
     private fun extractEmbeddedAlbumArtBytes(filePath: String): ByteArray? {
+        val startNanos = System.nanoTime()
+        val bytes = extractEmbeddedAlbumArtBytesInternal(filePath)
+        PerformanceMetrics.recordTiming(
+            PerformanceMetrics.Timings.ARTWORK_EXTRACT,
+            (System.nanoTime() - startNanos) / 1_000_000
+        )
+        if (bytes != null) {
+            PerformanceMetrics.increment(PerformanceMetrics.Counters.ARTWORK_EXTRACTED_FRESH)
+            // Only the byte size is recorded — a free field read. Embedded artwork
+            // *dimensions* are intentionally NOT decoded here: a per-file bitmap decode
+            // during scan is exactly the kind of overhead this diagnostic must avoid.
+            // Decoded dimensions come instead from the real decode path (CoilBitmapLoader).
+            PerformanceMetrics.recordEmbeddedArtwork(bytes.size.toLong())
+        }
+        return bytes
+    }
+
+    private fun extractEmbeddedAlbumArtBytesInternal(filePath: String): ByteArray? {
         val retrieverArtwork = MediaMetadataRetrieverPool.withRetriever { retriever ->
             try {
                 retriever.setDataSource(filePath)
@@ -430,4 +484,19 @@ object AlbumArtUtils {
             Uri.fromFile(file)
         }
     }
+}
+
+internal fun resolveAlbumArtUriForLibraryScan(
+    songId: Long,
+    hasCachedArtwork: Boolean,
+    hasNoArtworkMarker: Boolean,
+    forceRefresh: Boolean
+): String? {
+    if (hasCachedArtwork) {
+        return LocalArtworkUri.buildSongUri(songId)
+    }
+    if (hasNoArtworkMarker && !forceRefresh) {
+        return null
+    }
+    return LocalArtworkUri.buildSongUri(songId)
 }

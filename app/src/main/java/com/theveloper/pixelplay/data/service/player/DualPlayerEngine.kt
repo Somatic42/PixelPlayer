@@ -9,8 +9,10 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.LruCache
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.media3.common.AudioAttributes as Media3AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -32,6 +34,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp4.Mp4Extractor
+import com.theveloper.pixelplay.data.diagnostics.PerformanceMetrics
 import com.theveloper.pixelplay.data.model.TransitionSettings
 import com.theveloper.pixelplay.data.telegram.TelegramRepository
 import com.theveloper.pixelplay.utils.envelope
@@ -56,6 +59,7 @@ import kotlin.coroutines.resume
 import com.theveloper.pixelplay.data.netease.NeteaseStreamProxy
 import com.theveloper.pixelplay.data.navidrome.NavidromeStreamProxy
 import com.theveloper.pixelplay.data.qqmusic.QqMusicStreamProxy
+import androidx.core.net.toUri
 
 data class ActiveDecoderInfo(
     val name: String,
@@ -207,6 +211,47 @@ class DualPlayerEngine @Inject constructor(
     // player rebuild, which leaves the MediaSession briefly pointing at the released player
     // and silently drops any subsequent seeks.
     private var lastSeekAtMs: Long = 0L
+    // Diagnostics: timestamp when the master player entered STATE_BUFFERING, used to
+    // measure buffering->ready (playback prepare) durations for the performance report.
+    private var bufferingStartedAtMs: Long = 0L
+    // Diagnostics: timestamp when the most recent crossfade/transition started.
+    private var transitionStartedAtMs: Long = 0L
+
+    /**
+     * Whether ExoPlayer audio offload is currently enabled for this session. Exposed
+     * read-only for the diagnostic performance report. Offload is disabled at runtime
+     * when a HAL stall/reset is detected (see [disableAudioOffloadForSession]).
+     */
+    val isAudioOffloadEnabled: Boolean
+        get() = audioOffloadEnabled
+
+    /** Lightweight, allocation-cheap snapshot of the live audio format, for diagnostics. */
+    data class AudioFormatSnapshot(
+        val sampleMimeType: String?,
+        val sampleRate: Int,
+        val channelCount: Int,
+        val pcmEncoding: Int,
+        val bitrate: Int
+    )
+
+    /** Returns the current master-player audio format, or null when nothing is decoding. */
+    fun currentAudioFormatSnapshot(): AudioFormatSnapshot? {
+        if (!::playerA.isInitialized) return null
+        val format = playerA.audioFormat ?: return null
+        fun Int.orZero() = if (this == Format.NO_VALUE) 0 else this
+        val bitrate = when {
+            format.averageBitrate != Format.NO_VALUE -> format.averageBitrate
+            format.peakBitrate != Format.NO_VALUE -> format.peakBitrate
+            else -> 0
+        }
+        return AudioFormatSnapshot(
+            sampleMimeType = format.sampleMimeType,
+            sampleRate = format.sampleRate.orZero(),
+            channelCount = format.channelCount.orZero(),
+            pcmEncoding = format.pcmEncoding.orZero(),
+            bitrate = bitrate
+        )
+    }
 
     /**
      * Set by MusicService once ReplayGain for the incoming track is known.
@@ -320,7 +365,25 @@ class DualPlayerEngine @Inject constructor(
         ) {
             val isHardware = AudioDecoderPolicy.isLikelyHardwareDecoder(decoderName)
             _activeDecoderInfo.value = ActiveDecoderInfo(decoderName, isHardware)
+            PerformanceMetrics.recordTiming(
+                PerformanceMetrics.Timings.AUDIO_DECODER_INIT,
+                initializationDurationMs
+            )
             Timber.tag("DualPlayerEngine").d("Audio decoder initialized: %s (Hardware: %b)", decoderName, isHardware)
+        }
+
+        override fun onAudioInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
+        ) {
+            // Record the live format (channels, sample rate, bit depth) as the report's
+            // source of multichannel / bit-depth data — these aren't stored in the library DB.
+            PerformanceMetrics.recordPlaybackFormat(
+                channelCount = if (format.channelCount == Format.NO_VALUE) 0 else format.channelCount,
+                sampleRate = if (format.sampleRate == Format.NO_VALUE) 0 else format.sampleRate,
+                pcmEncoding = if (format.pcmEncoding == Format.NO_VALUE) 0 else format.pcmEncoding
+            )
         }
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -401,6 +464,7 @@ class DualPlayerEngine @Inject constructor(
             when (playbackState) {
                 Player.STATE_BUFFERING -> {
                     val now = SystemClock.elapsedRealtime()
+                    if (bufferingStartedAtMs == 0L) bufferingStartedAtMs = now
                     val timeSincePlayingMs = now - lastPlayingAtMs
                     val timeSinceSeekMs = now - lastSeekAtMs
                     val isPostSeekBuffering = lastSeekAtMs > 0L && timeSinceSeekMs < 1_500L
@@ -415,8 +479,20 @@ class DualPlayerEngine @Inject constructor(
                         scheduleAudioOffloadFallbackIfNeeded(playerA)
                     }
                 }
-                Player.STATE_READY -> scheduleAudioOffloadFallbackIfNeeded(playerA)
-                Player.STATE_IDLE, Player.STATE_ENDED -> cancelAudioOffloadFallback()
+                Player.STATE_READY -> {
+                    if (bufferingStartedAtMs > 0L) {
+                        PerformanceMetrics.recordTiming(
+                            PerformanceMetrics.Timings.PLAYBACK_PREPARE,
+                            SystemClock.elapsedRealtime() - bufferingStartedAtMs
+                        )
+                        bufferingStartedAtMs = 0L
+                    }
+                    scheduleAudioOffloadFallbackIfNeeded(playerA)
+                }
+                Player.STATE_IDLE, Player.STATE_ENDED -> {
+                    bufferingStartedAtMs = 0L
+                    cancelAudioOffloadFallback()
+                }
             }
         }
 
@@ -522,6 +598,7 @@ class DualPlayerEngine @Inject constructor(
         resetPreparedWindowState()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun requestAudioFocus() {
         if (audioFocusRequest != null) return
 
@@ -648,6 +725,7 @@ class DualPlayerEngine @Inject constructor(
         }
 
         audioOffloadEnabled = false
+        PerformanceMetrics.recordOffloadFallback(reason, SystemClock.elapsedRealtime())
         rebuildPlayersPreservingMasterState(
             logMessage = "Audio offload disabled for current session. $reason"
         )
@@ -913,13 +991,13 @@ class DualPlayerEngine @Inject constructor(
     private suspend fun resolveNavidromeUriAsync(uriString: String): Uri? = withContext(Dispatchers.IO) {
         if (!navidromeStreamProxy.ensureReady(5_000L)) return@withContext null
         navidromeStreamProxy.warmUpStreamUrl(uriString)
-        navidromeStreamProxy.resolveNavidromeUri(uriString)?.let { Uri.parse(it) }
+        navidromeStreamProxy.resolveNavidromeUri(uriString)?.toUri()
     }
 
     private suspend fun resolveJellyfinUriAsync(uriString: String): Uri? = withContext(Dispatchers.IO) {
         if (!jellyfinStreamProxy.ensureReady(5_000L)) return@withContext null
         jellyfinStreamProxy.warmUpStreamUrl(uriString)
-        jellyfinStreamProxy.resolveJellyfinUri(uriString)?.let { Uri.parse(it) }
+        jellyfinStreamProxy.resolveJellyfinUri(uriString)?.toUri()
     }
 
     private suspend fun resolveGDriveUriAsync(uriString: String): Uri? = withContext(Dispatchers.IO) {
@@ -928,7 +1006,7 @@ class DualPlayerEngine @Inject constructor(
             return@withContext null
         }
         if (!gdriveStreamProxy.ensureReady(5_000L)) return@withContext null
-        gdriveStreamProxy.resolveGDriveUri(uriString)?.let { Uri.parse(it) }
+        gdriveStreamProxy.resolveGDriveUri(uriString)?.toUri()
     }
 
     suspend fun resolveMediaItem(mediaItem: MediaItem): MediaItem {
@@ -1018,6 +1096,7 @@ class DualPlayerEngine @Inject constructor(
     fun performTransition(settings: TransitionSettings) {
         transitionJob?.cancel()
         transitionRunning = true
+        transitionStartedAtMs = SystemClock.elapsedRealtime()
         transitionJob = scope.launch {
             try {
                 performOverlapTransition(settings)
@@ -1030,6 +1109,13 @@ class DualPlayerEngine @Inject constructor(
                 playerB?.stop()
             } finally {
                 transitionRunning = false
+                if (transitionStartedAtMs > 0L) {
+                    PerformanceMetrics.recordTiming(
+                        PerformanceMetrics.Timings.TRANSITION,
+                        SystemClock.elapsedRealtime() - transitionStartedAtMs
+                    )
+                    transitionStartedAtMs = 0L
+                }
                 onTransitionFinishedListeners.forEach { it() }
             }
         }
