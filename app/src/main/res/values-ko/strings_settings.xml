@@ -25,14 +25,14 @@
     <string name="settings_category_about_subtitle">앱 정보, 버전 및 제작진</string>
 
     <!-- Common toggles / labels used in ThemeSelectorItem maps -->
-    <string name="label_on">켜짐</string>
-    <string name="label_off">꺼짐</string>
-    <string name="label_enabled">활성화됨</string>
-    <string name="label_disabled">비활성화됨</string>
-    <string name="cd_open">열기</string>
-    <string name="cd_select_all">모두 선택</string>
-    <string name="cd_clear_selection">선택 해제</string>
-    <string name="cd_close_notice">알림 닫기</string>
+    <string name="settings_label_on">켜짐</string>
+    <string name="settings_label_off">꺼짐</string>
+    <string name="settings_label_enabled">활성화됨</string>
+    <string name="settings_label_disabled">비활성화됨</string>
+    <string name="settings_cd_open">열기</string>
+    <string name="settings_cd_select_all">모두 선택</string>
+    <string name="settings_cd_clear_selection">선택 해제</string>
+    <string name="settings_cd_close_notice">알림 닫기</string>
 
     <!-- Music Management category -->
     <string name="settings_library_structure_section">라이브러리 구조</string>

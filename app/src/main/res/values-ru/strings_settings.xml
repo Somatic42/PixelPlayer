@@ -25,14 +25,14 @@
     <string name="settings_category_about_subtitle">Информация, версия и благодарности</string>
 
     <!-- Common toggles / labels used in ThemeSelectorItem maps -->
-    <string name="label_on">Вкл.</string>
-    <string name="label_off">Выкл.</string>
-    <string name="label_enabled">Включено</string>
-    <string name="label_disabled">Отключено</string>
-    <string name="cd_open">Открыть</string>
-    <string name="cd_select_all">Выбрать всё</string>
-    <string name="cd_clear_selection">Снять выделение</string>
-    <string name="cd_close_notice">Закрыть уведомление</string>
+    <string name="settings_label_on">Вкл.</string>
+    <string name="settings_label_off">Выкл.</string>
+    <string name="settings_label_enabled">Включено</string>
+    <string name="settings_label_disabled">Отключено</string>
+    <string name="settings_cd_open">Открыть</string>
+    <string name="settings_cd_select_all">Выбрать всё</string>
+    <string name="settings_cd_clear_selection">Снять выделение</string>
+    <string name="settings_cd_close_notice">Закрыть уведомление</string>
 
     <!-- Music Management category -->
     <string name="settings_library_structure_section">Структура медиатеки</string>

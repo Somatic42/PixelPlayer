@@ -25,14 +25,14 @@
     <string name="settings_category_about_subtitle">Información de la app, versión y créditos</string>
 
     <!-- Common toggles / labels used in ThemeSelectorItem maps -->
-    <string name="label_on">Activado</string>
-    <string name="label_off">Desactivado</string>
-    <string name="label_enabled">Habilitado</string>
-    <string name="label_disabled">Deshabilitado</string>
-    <string name="cd_open">Abrir</string>
-    <string name="cd_select_all">Seleccionar todo</string>
-    <string name="cd_clear_selection">Borrar selección</string>
-    <string name="cd_close_notice">Cerrar aviso</string>
+    <string name="settings_label_on">Activado</string>
+    <string name="settings_label_off">Desactivado</string>
+    <string name="settings_label_enabled">Habilitado</string>
+    <string name="settings_label_disabled">Deshabilitado</string>
+    <string name="settings_cd_open">Abrir</string>
+    <string name="settings_cd_select_all">Seleccionar todo</string>
+    <string name="settings_cd_clear_selection">Borrar selección</string>
+    <string name="settings_cd_close_notice">Cerrar aviso</string>
 
     <!-- Music Management category -->
     <string name="settings_library_structure_section">Estructura de la biblioteca</string>

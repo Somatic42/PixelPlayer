@@ -25,14 +25,14 @@
     <string name="settings_category_about_subtitle">Uygulama bilgisi, sürüm ve katkıda bulunanlar</string>
 
     <!-- Common toggles / labels used in ThemeSelectorItem maps -->
-    <string name="label_on">Açık</string>
-    <string name="label_off">Kapalı</string>
-    <string name="label_enabled">Etkin</string>
-    <string name="label_disabled">Devre Dışı</string>
-    <string name="cd_open">Aç</string>
-    <string name="cd_select_all">Tümünü seç</string>
-    <string name="cd_clear_selection">Seçimi temizle</string>
-    <string name="cd_close_notice">Bildirimi kapat</string>
+    <string name="settings_label_on">Açık</string>
+    <string name="settings_label_off">Kapalı</string>
+    <string name="settings_label_enabled">Etkin</string>
+    <string name="settings_label_disabled">Devre Dışı</string>
+    <string name="settings_cd_open">Aç</string>
+    <string name="settings_cd_select_all">Tümünü seç</string>
+    <string name="settings_cd_clear_selection">Seçimi temizle</string>
+    <string name="settings_cd_close_notice">Bildirimi kapat</string>
 
     <!-- Music Management category -->
     <string name="settings_library_structure_section">Kitaplık Yapısı</string>

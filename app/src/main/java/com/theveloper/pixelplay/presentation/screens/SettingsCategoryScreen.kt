@@ -421,7 +421,7 @@ fun SettingsCategoryScreen(
                                     title = stringResource(R.string.settings_excluded_directories_title),
                                     subtitle = stringResource(R.string.settings_excluded_directories_subtitle),
                                     leadingIcon = { Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.secondary) },
-                                    trailingIcon = { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.cd_open), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                    trailingIcon = { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.settings_cd_open), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                                     onClick = {
                                         showExplorerSheet = true
                                         settingsViewModel.openExplorer()
@@ -431,7 +431,7 @@ fun SettingsCategoryScreen(
                                     title = stringResource(R.string.settings_artists_title),
                                     subtitle = stringResource(R.string.settings_artists_subtitle),
                                     leadingIcon = { Icon(Icons.Outlined.Person, null, tint = MaterialTheme.colorScheme.secondary) },
-                                    trailingIcon = { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.cd_open), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                    trailingIcon = { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.settings_cd_open), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                                     onClick = { navController.navigateSafely(Screen.ArtistSettings.route) }
                                 )
                             }
@@ -739,7 +739,7 @@ fun SettingsCategoryScreen(
                                 ThemeSelectorItem(
                                     label = stringResource(R.string.settings_keep_playing_title),
                                     description = stringResource(R.string.settings_keep_playing_subtitle),
-                                    options = mapOf("true" to stringResource(R.string.label_on), "false" to stringResource(R.string.label_off)),
+                                    options = mapOf("true" to stringResource(R.string.settings_label_on), "false" to stringResource(R.string.settings_label_off)),
                                     selectedKey = if (uiState.keepPlayingInBackground) "true" else "false",
                                     onSelectionChanged = { settingsViewModel.setKeepPlayingInBackground(it.toBoolean()) },
                                     leadingIcon = { Icon(Icons.Rounded.MusicNote, null, tint = MaterialTheme.colorScheme.secondary) }
@@ -799,7 +799,7 @@ fun SettingsCategoryScreen(
                                 ThemeSelectorItem(
                                     label = stringResource(R.string.settings_cast_autoplay_title),
                                     description = stringResource(R.string.settings_cast_autoplay_subtitle),
-                                    options = mapOf("false" to stringResource(R.string.label_enabled), "true" to stringResource(R.string.label_disabled)),
+                                    options = mapOf("false" to stringResource(R.string.settings_label_enabled), "true" to stringResource(R.string.settings_label_disabled)),
                                     selectedKey = if (uiState.disableCastAutoplay) "true" else "false",
                                     onSelectionChanged = { settingsViewModel.setDisableCastAutoplay(it.toBoolean()) },
                                     leadingIcon = { Icon(painterResource(R.drawable.rounded_cast_24), null, tint = MaterialTheme.colorScheme.secondary) }
@@ -820,7 +820,7 @@ fun SettingsCategoryScreen(
                                 ThemeSelectorItem(
                                     label = stringResource(R.string.settings_crossfade_title),
                                     description = stringResource(R.string.settings_crossfade_subtitle),
-                                    options = mapOf("true" to stringResource(R.string.label_enabled), "false" to stringResource(R.string.label_disabled)),
+                                    options = mapOf("true" to stringResource(R.string.settings_label_enabled), "false" to stringResource(R.string.settings_label_disabled)),
                                     selectedKey = if (uiState.isCrossfadeEnabled) "true" else "false",
                                     onSelectionChanged = { settingsViewModel.setCrossfadeEnabled(it.toBoolean()) },
                                     leadingIcon = { Icon(painterResource(R.drawable.rounded_align_justify_space_even_24), null, tint = MaterialTheme.colorScheme.secondary) }
@@ -1180,7 +1180,7 @@ fun SettingsCategoryScreen(
                                     title = stringResource(R.string.settings_experimental_title),
                                     subtitle = stringResource(R.string.settings_experimental_subtitle),
                                     leadingIcon = { Icon(Icons.Rounded.Science, null, tint = MaterialTheme.colorScheme.secondary) },
-                                    trailingIcon = { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.cd_open), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                    trailingIcon = { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.settings_cd_open), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                                     onClick = { navController.navigateSafely(Screen.Experimental.route) }
                                 )
                                 SettingsItem(
@@ -1691,7 +1691,7 @@ private fun BackupInfoNoticeCard(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.rounded_close_24),
-                    contentDescription = stringResource(R.string.cd_close_notice),
+                    contentDescription = stringResource(R.string.settings_cd_close_notice),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
@@ -1818,7 +1818,7 @@ private fun BackupSectionSelectionDialog(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.round_select_all_24),
-                                                contentDescription = stringResource(R.string.cd_select_all)
+                                                contentDescription = stringResource(R.string.settings_cd_select_all)
                                             )
                                         }
                                         FilledIconButton(
@@ -1831,7 +1831,7 @@ private fun BackupSectionSelectionDialog(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.baseline_deselect_24),
-                                                contentDescription = stringResource(R.string.cd_clear_selection)
+                                                contentDescription = stringResource(R.string.settings_cd_clear_selection)
                                             )
                                         }
                                     }

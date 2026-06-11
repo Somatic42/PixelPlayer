@@ -25,14 +25,14 @@
     <string name="settings_category_about_subtitle">Version, Credits und mehr</string>
 
     <!-- Common toggles / labels used in ThemeSelectorItem maps -->
-    <string name="label_on">An</string>
-    <string name="label_off">Aus</string>
-    <string name="label_enabled">Aktiviert</string>
-    <string name="label_disabled">Deaktiviert</string>
-    <string name="cd_open">Öffnen</string>
-    <string name="cd_select_all">Alle auswählen</string>
-    <string name="cd_clear_selection">Auswahl aufheben</string>
-    <string name="cd_close_notice">Hinweis schließen</string>
+    <string name="settings_label_on">An</string>
+    <string name="settings_label_off">Aus</string>
+    <string name="settings_label_enabled">Aktiviert</string>
+    <string name="settings_label_disabled">Deaktiviert</string>
+    <string name="settings_cd_open">Öffnen</string>
+    <string name="settings_cd_select_all">Alle auswählen</string>
+    <string name="settings_cd_clear_selection">Auswahl aufheben</string>
+    <string name="settings_cd_close_notice">Hinweis schließen</string>
 
     <!-- Music Management category -->
     <string name="settings_library_structure_section">Bibliotheksstruktur</string>

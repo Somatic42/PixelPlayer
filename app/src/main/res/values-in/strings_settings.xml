@@ -25,14 +25,14 @@
     <string name="settings_category_about_subtitle">Info aplikasi, versi, dan kredit</string>
 
     <!-- Common toggles / labels used in ThemeSelectorItem maps -->
-    <string name="label_on">Nyala</string>
-    <string name="label_off">Mati</string>
-    <string name="label_enabled">Diaktifkan</string>
-    <string name="label_disabled">Dinonaktifkan</string>
-    <string name="cd_open">Buka</string>
-    <string name="cd_select_all">Pilih semua</string>
-    <string name="cd_clear_selection">Bersihkan pilihan</string>
-    <string name="cd_close_notice">Tutup pemberitahuan</string>
+    <string name="settings_label_on">Nyala</string>
+    <string name="settings_label_off">Mati</string>
+    <string name="settings_label_enabled">Diaktifkan</string>
+    <string name="settings_label_disabled">Dinonaktifkan</string>
+    <string name="settings_cd_open">Buka</string>
+    <string name="settings_cd_select_all">Pilih semua</string>
+    <string name="settings_cd_clear_selection">Bersihkan pilihan</string>
+    <string name="settings_cd_close_notice">Tutup pemberitahuan</string>
 
     <!-- Music Management category -->
     <string name="settings_library_structure_section">Struktur Pustaka</string>
