@@ -33,6 +33,8 @@ REPLACEMENTS: list[tuple[str, str]] = [
     ('contentDescription = "Play/Pause"', 'contentDescription = stringResource(R.string.mashup_cd_play_pause)'),
     ('contentDescription = "Song Cover"', 'contentDescription = stringResource(R.string.cd_song_cover)'),
     ('Text("Delete")', 'Text(stringResource(R.string.delete_action))'),
+    # Legacy literals found in some source files; keep these explicit Spanish matches
+    # so the migration reliably rewrites them to localized string resources.
     ('contentDescription = "Limpiar"', 'contentDescription = stringResource(R.string.cd_clear_search_query)'),
     ('contentDescription = "Buscar"', 'contentDescription = stringResource(R.string.cd_search_icon)'),
 ]
