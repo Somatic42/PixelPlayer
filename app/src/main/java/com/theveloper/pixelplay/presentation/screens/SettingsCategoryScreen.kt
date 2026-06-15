@@ -906,6 +906,9 @@ fun SettingsCategoryScreen(
                             }
                         }
                         SettingsCategory.AI_INTEGRATION -> {
+                            val provider = com.theveloper.pixelplay.data.ai.provider.AiProvider.fromString(aiProvider)
+                            val currentCustomBaseUrl by settingsViewModel.customBaseUrl.collectAsStateWithLifecycle()
+
                             // AI Provider Selection
                             SettingsSubsection(title = stringResource(R.string.settings_ai_provider_section)) {
                                 ThemeSelectorItem(
@@ -939,7 +942,6 @@ fun SettingsCategoryScreen(
                             
                             // Consolidated API Key Section
                             SettingsSubsection(title = stringResource(R.string.settings_credentials_section)) {
-                                val provider = com.theveloper.pixelplay.data.ai.provider.AiProvider.fromString(aiProvider)
                                 val sourceLabel = when(provider) {
                                     com.theveloper.pixelplay.data.ai.provider.AiProvider.GEMINI -> stringResource(R.string.settings_ai_source_gemini)
                                     com.theveloper.pixelplay.data.ai.provider.AiProvider.DEEPSEEK -> stringResource(R.string.settings_ai_source_deepseek)
@@ -1017,7 +1019,7 @@ fun SettingsCategoryScreen(
                             if (provider.hasConfigurableUrl) {
                                 SettingsSubsection(title = "API Base URL") {
                                     AiApiKeyItem(
-                                        apiKey = customBaseUrl,
+                                        apiKey = settingsViewModel.customBaseUrl,
                                         onApiKeySave = { settingsViewModel.onCustomBaseUrlChange(it) },
                                         title = "Base URL",
                                         subtitle = "e.g. https://api.example.com/v1"
