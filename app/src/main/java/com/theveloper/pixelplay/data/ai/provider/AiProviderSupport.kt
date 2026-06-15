@@ -89,6 +89,7 @@ internal object AiProviderSupport {
             AiProvider.NVIDIA,
             AiProvider.KIMI,
             AiProvider.GLM,
+            AiProvider.OLLAMA,
             AiProvider.CUSTOM
         )
 
