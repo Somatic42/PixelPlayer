@@ -70,6 +70,12 @@ class AiClientFactory @Inject constructor() {
                 defaultModelId = "google/gemini-2.0-flash-lite-preview-02-05:free",
                 providerName = "OpenRouter"
             )
+            AiProvider.OLLAMA -> GenericOpenAiClient(
+                apiKey = apiKey,
+                baseUrl = "https://api.ollama.ai/v1",
+                defaultModelId = "llama3",
+                providerName = "Ollama"
+            )
             AiProvider.CUSTOM -> GenericOpenAiClient(
                 apiKey = apiKey,
                 baseUrl = "",
