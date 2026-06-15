@@ -299,6 +299,28 @@ class SettingsViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
+    // Generation Parameters
+    val aiTemperature: StateFlow<Float> = aiPreferencesRepository.aiTemperature
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.7f)
+    val aiTopP: StateFlow<Float> = aiPreferencesRepository.aiTopP
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.95f)
+    val aiTopK: StateFlow<Int> = aiPreferencesRepository.aiTopK
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 64)
+    val aiMaxTokens: StateFlow<Int> = aiPreferencesRepository.aiMaxTokens
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 4096)
+    val aiPresencePenalty: StateFlow<Float> = aiPreferencesRepository.aiPresencePenalty
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0f)
+    val aiFrequencyPenalty: StateFlow<Float> = aiPreferencesRepository.aiFrequencyPenalty
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0f)
+
+    // Song Data Configuration
+    val aiSampleSize: StateFlow<Int> = aiPreferencesRepository.aiSampleSize
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 40)
+    val aiDigestMode: StateFlow<String> = aiPreferencesRepository.aiDigestMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "safe")
+    val aiIncludeExtendedFields: StateFlow<Boolean> = aiPreferencesRepository.aiIncludeExtendedFields
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun onAiApiKeyChange(apiKey: String) {
         viewModelScope.launch {
             val providerStr = aiProvider.value
@@ -391,6 +413,34 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             aiPreferencesRepository.setBaseUrl(AiProvider.CUSTOM, baseUrl)
         }
+    }
+
+    fun onAiTemperatureChange(value: Float) {
+        viewModelScope.launch { aiPreferencesRepository.setAiTemperature(value) }
+    }
+    fun onAiTopPChange(value: Float) {
+        viewModelScope.launch { aiPreferencesRepository.setAiTopP(value) }
+    }
+    fun onAiTopKChange(value: Int) {
+        viewModelScope.launch { aiPreferencesRepository.setAiTopK(value) }
+    }
+    fun onAiMaxTokensChange(value: Int) {
+        viewModelScope.launch { aiPreferencesRepository.setAiMaxTokens(value) }
+    }
+    fun onAiPresencePenaltyChange(value: Float) {
+        viewModelScope.launch { aiPreferencesRepository.setAiPresencePenalty(value) }
+    }
+    fun onAiFrequencyPenaltyChange(value: Float) {
+        viewModelScope.launch { aiPreferencesRepository.setAiFrequencyPenalty(value) }
+    }
+    fun onAiSampleSizeChange(value: Int) {
+        viewModelScope.launch { aiPreferencesRepository.setAiSampleSize(value) }
+    }
+    fun onAiDigestModeChange(mode: String) {
+        viewModelScope.launch { aiPreferencesRepository.setAiDigestMode(mode) }
+    }
+    fun onAiIncludeExtendedFieldsChange(enabled: Boolean) {
+        viewModelScope.launch { aiPreferencesRepository.setAiIncludeExtendedFields(enabled) }
     }
 
     fun onAiModelChange(model: String) {
