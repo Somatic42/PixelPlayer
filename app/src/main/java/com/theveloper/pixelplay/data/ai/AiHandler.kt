@@ -60,24 +60,53 @@ class AiHandler @Inject constructor(
         preferencesRepo.setModel(provider, model)
     }
 
+    private data class GenerationParams(
+        val temperature: Float,
+        val topP: Float,
+        val topK: Int,
+        val maxTokens: Int,
+        val presencePenalty: Float,
+        val frequencyPenalty: Float,
+    )
+
+    private suspend fun getGenerationParams(): GenerationParams {
+        return GenerationParams(
+            temperature = preferencesRepo.aiTemperature.first(),
+            topP = preferencesRepo.aiTopP.first(),
+            topK = preferencesRepo.aiTopK.first(),
+            maxTokens = preferencesRepo.aiMaxTokens.first(),
+            presencePenalty = preferencesRepo.aiPresencePenalty.first(),
+            frequencyPenalty = preferencesRepo.aiFrequencyPenalty.first(),
+        )
+    }
+
     private suspend fun generateWithRecovery(
         provider: AiProvider,
         apiKey: String,
         systemPrompt: String,
         prompt: String,
-        temperature: Float
+        temperature: Float,
+        topP: Float,
+        topK: Int,
+        maxTokens: Int,
+        presencePenalty: Float,
+        frequencyPenalty: Float,
     ): String {
         val client = clientFactory.createClient(provider, apiKey)
         val requestedModel = getModel(provider).ifBlank { client.getDefaultModel() }
 
         return try {
-            // Wrap in timeout to prevent hanging requests
             withTimeout(REQUEST_TIMEOUT_MS) {
                 client.generateContent(
                     requestedModel,
                     systemPrompt,
                     prompt,
-                    temperature
+                    temperature,
+                    topP,
+                    topK,
+                    maxTokens,
+                    presencePenalty,
+                    frequencyPenalty,
                 )
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
@@ -103,13 +132,17 @@ class AiHandler @Inject constructor(
                 failure = failure
             ) ?: throw failure
 
-            // Retry with recovered model (also with timeout)
             withTimeout(REQUEST_TIMEOUT_MS) {
                 client.generateContent(
                     recoveredModel,
                     systemPrompt,
                     prompt,
-                    temperature
+                    temperature,
+                    topP,
+                    topK,
+                    maxTokens,
+                    presencePenalty,
+                    frequencyPenalty,
                 )
             }
         }
@@ -141,48 +174,40 @@ class AiHandler @Inject constructor(
         temperature: Float = 0.7f,
         context: String = ""
     ): String {
-        // Dynamic temperature adjustment if default value is used
-        val resolvedTemperature = if (temperature == 0.7f) {
-            when (type) {
-                // AI Optimization: Use low temperature for high-precision metadata to prevent hallucinations
-                AiSystemPromptType.METADATA -> 0.1f
-                AiSystemPromptType.MOOD_ANALYSIS -> 0.2f
-                // AI Optimization: Moderate temperature for tags to allow creative yet relevant descriptors
-                AiSystemPromptType.TAGGING -> 0.4f
-                // AI Optimization: Balanced temperature for playlists to ensure variety without losing cohesion
-                AiSystemPromptType.PLAYLIST, AiSystemPromptType.DAILY_MIX -> 0.6f
-                // AI Optimization: High temperature for persona-based responses to increase flair and engagement
-                AiSystemPromptType.PERSONA -> 0.85f
-                AiSystemPromptType.GENERAL -> 0.7f
-            }
-        } else temperature
+        val params = getGenerationParams()
+        val effectiveTemperature = if (params.temperature == 0.7f) {
+            if (temperature == 0.7f) {
+                when (type) {
+                    AiSystemPromptType.METADATA -> 0.1f
+                    AiSystemPromptType.MOOD_ANALYSIS -> 0.2f
+                    AiSystemPromptType.TAGGING -> 0.4f
+                    AiSystemPromptType.PLAYLIST, AiSystemPromptType.DAILY_MIX -> 0.6f
+                    AiSystemPromptType.PERSONA -> 0.85f
+                    AiSystemPromptType.GENERAL -> 0.7f
+                }
+            } else temperature
+        } else params.temperature
 
-        // Determine chain based on user preference
         val userProviderStr = preferencesRepo.aiProvider.first()
         val userProvider = AiProvider.fromString(userProviderStr)
 
-        // Generate combined prompt for hashing and execution
         val basePersona = getBasePersona(userProvider)
         val combinedSystemPrompt = promptEngine.buildPrompt(basePersona, type, context)
-        
-        // Cache entry is valid for a specific prompt + system instruction + provider
+
         val hash = (userProvider.name + combinedSystemPrompt + prompt).sha256()
 
-        // Check cache with TTL — don't serve stale results
         cacheDao.getCache(hash)?.let { cached ->
             val age = System.currentTimeMillis() - cached.timestamp
             if (age < CACHE_TTL_MS) {
                 return cached.responseJson
             }
-            // Cache expired — proceed with fresh generation
         }
 
         val providersToTry = com.theveloper.pixelplay.data.ai.provider.AiProviderSupport.buildProviderChain(userProvider)
         val failedProviders = mutableListOf<String>()
         val now = System.currentTimeMillis()
-        
+
         for (provider in providersToTry) {
-            // Skip if in cooldown
             val cooldownExpiry = providerCooldowns[provider] ?: 0L
             if (now < cooldownExpiry) {
                 failedProviders.add("${provider.name}: on cooldown (${((cooldownExpiry - now) / 1000)}s remaining)")
@@ -196,7 +221,6 @@ class AiHandler @Inject constructor(
                     continue
                 }
 
-                // Use the shared base persona but specialized type rules for each provider in the chain
                 val providerPersona = getBasePersona(provider)
                 val finalSystemPrompt = promptEngine.buildPrompt(providerPersona, type, context)
 
@@ -205,7 +229,12 @@ class AiHandler @Inject constructor(
                     apiKey = apiKey,
                     systemPrompt = finalSystemPrompt,
                     prompt = prompt,
-                    temperature = resolvedTemperature
+                    temperature = effectiveTemperature,
+                    topP = params.topP,
+                    topK = params.topK,
+                    maxTokens = params.maxTokens,
+                    presencePenalty = params.presencePenalty,
+                    frequencyPenalty = params.frequencyPenalty,
                 )
 
                 // Validate response is not empty
