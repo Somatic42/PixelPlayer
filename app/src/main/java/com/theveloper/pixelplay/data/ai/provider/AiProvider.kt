@@ -13,6 +13,7 @@ enum class AiProvider(val displayName: String, val requiresApiKey: Boolean, val 
     GLM("Zhipu GLM", requiresApiKey = true),
     OPENAI("OpenAI", requiresApiKey = true),
     OPENROUTER("OpenRouter", requiresApiKey = true),
+    OLLAMA("Ollama", requiresApiKey = true),
     CUSTOM("Custom Provider", requiresApiKey = true, hasConfigurableUrl = true);
     
     companion object {
