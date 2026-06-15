@@ -40,13 +40,13 @@ class AiPlaylistGenerator @Inject constructor(
                 }
             }
 
-            // Token Optimization: Reduce sample size based on safe mode
             val isSafe = preferencesRepo.isSafeTokenLimitEnabled.first()
-            val sampleCap = if (isSafe) 40 else 80
+            val prefSampleSize = preferencesRepo.aiSampleSize.first()
+            val useExtendedFields = preferencesRepo.aiIncludeExtendedFields.first()
+            val sampleCap = if (isSafe) prefSampleSize else prefSampleSize * 2
             val sampleSize = max(minLength, sampleCap).coerceAtMost(sampleCap)
             val songSample = samplingPool.take(sampleSize)
-            
-            // Token Optimization: Compact JSON format — only essential fields
+
             val availableSongsJson = buildString {
                 songSample.forEachIndexed { index, song ->
                     val score = dailyMixManager.getScore(song.id)
@@ -54,7 +54,14 @@ class AiPlaylistGenerator @Inject constructor(
                     val artist = song.displayArtist.replace("\"", "'").take(25)
                     val genre = song.genre?.replace("\"", "'")?.take(15) ?: "?"
                     if (index > 0) append(",\n")
-                    append("""{"id":"${song.id}","t":"$title","a":"$artist","g":"$genre","s":$score}""")
+                    if (useExtendedFields) {
+                        val album = song.album?.replace("\"", "'")?.take(25) ?: "?"
+                        val dur = song.duration
+                        val fav = if (song.isFavorite) "1" else "0"
+                        append("""{"id":"${song.id}","t":"$title","a":"$artist","g":"$genre","al":"$album","d":$dur,"f":$fav,"s":$score}""")
+                    } else {
+                        append("""{"id":"${song.id}","t":"$title","a":"$artist","g":"$genre","s":$score}""")
+                    }
                 }
             }
 
