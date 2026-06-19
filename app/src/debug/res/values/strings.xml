@@ -3,4 +3,5 @@
     <string name="app_name">PixelPlayer [D]</string>
     <string name="settings_pause_on_volume_zero">Pause when volume reaches zero</string>
     <string name="settings_pause_on_volume_zero_desc">Automatically pause playback when the volume is set to 0</string>
+    <string name="settings_volume_section">Volume</string>
 </resources>
