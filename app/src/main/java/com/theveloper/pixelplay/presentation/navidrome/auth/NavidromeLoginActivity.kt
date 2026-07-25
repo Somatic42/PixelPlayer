@@ -1,5 +1,10 @@
 package com.theveloper.pixelplay.presentation.navidrome.auth
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -81,12 +86,35 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 @AndroidEntryPoint
 class NavidromeLoginActivity : ComponentActivity() {
 
+    private val requestLocalNetworkPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            // Не обязательно ничего делать тут — если юзер откажет,
+            // login() всё равно попробует подключиться и просто
+            // получит явную ошибку вместо тихого зависания.
+        }
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestLocalNetworkPermissionIfNeeded()
         setContent {
             PixelPlayTheme {
                 NavidromeLoginScreen(onClose = { finish() })
+            }
+        }
+    }
+
+    private fun requestLocalNetworkPermissionIfNeeded() {
+        // ACCESS_LOCAL_NETWORK появилось в Android 17.
+        // Проверяй точное число константы в своём Android SDK —
+        // Build.VERSION_CODES.BAKLAVA или похожее имя, если уже
+        // проставлено в твоей версии compileSdk/androidx.
+        if (Build.VERSION.SDK_INT >= 37) {
+            val perm = "android.permission.ACCESS_LOCAL_NETWORK"
+            val granted = ContextCompat.checkSelfPermission(this, perm) ==
+                PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                requestLocalNetworkPermission.launch(perm)
             }
         }
     }
