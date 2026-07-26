@@ -156,6 +156,14 @@ fun PlaylistDetailScreen(
     playlistViewModel: PlaylistViewModel = hiltViewModel(),
     navController: NavController
 ) {
+    val plContext = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(playlistId) {
+        androidx.work.WorkManager.getInstance(plContext).enqueueUniqueWork(
+            "navidrome_sync_playlist_$playlistId",
+            androidx.work.ExistingWorkPolicy.KEEP,
+            com.theveloper.pixelplay.data.worker.NavidromeSyncWorker.startPlaylistSync(playlistId)
+        )
+    }
     val uiState by playlistViewModel.uiState.collectAsStateWithLifecycle()
     val playerStableState by playerViewModel.stablePlayerState.collectAsStateWithLifecycle()
     val context = LocalContext.current

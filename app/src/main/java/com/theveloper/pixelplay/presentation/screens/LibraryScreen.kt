@@ -438,6 +438,14 @@ fun LibraryScreen(
     songInfoBottomSheetViewModel: SongInfoBottomSheetViewModel = hiltViewModel()
 ) {
     // La recolección de estados de alto nivel se mantiene mínima.
+    val libContext = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) {
+        androidx.work.WorkManager.getInstance(libContext).enqueueUniqueWork(
+            "navidrome_sync_all",
+            androidx.work.ExistingWorkPolicy.KEEP,
+            com.theveloper.pixelplay.data.worker.NavidromeSyncWorker.startAllSync()
+        )
+    }
     val context = LocalContext.current // Added context
     val haptic = LocalHapticFeedback.current
     val lastTabIndex by playerViewModel.lastLibraryTabIndexFlow.collectAsStateWithLifecycle()

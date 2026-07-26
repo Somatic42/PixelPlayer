@@ -46,6 +46,7 @@ class NavidromeSyncWorker @AssistedInject constructor(
                             )
                         )
                     }
+                    repository.syncFavorites()
                 }
                 SYNC_TYPE_PLAYLISTS -> {
                     repository.syncPlaylists()
