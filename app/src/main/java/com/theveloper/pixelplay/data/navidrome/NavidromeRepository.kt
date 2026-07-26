@@ -46,6 +46,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.absoluteValue
 import androidx.core.content.edit
+import com.theveloper.pixelplay.data.database.FavoritesEntity
 
 /**
  * Repository for Navidrome/Subsonic music service.
@@ -59,7 +60,8 @@ class NavidromeRepository @Inject constructor(
     private val dao: NavidromeDao,
     private val musicDao: MusicDao,
     private val playlistPreferencesRepository: PlaylistPreferencesRepository,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val favoritesDao: com.theveloper.pixelplay.data.database.FavoritesDao
 ) {
     companion object {
         const val SYNC_THRESHOLD_MS = 24 * 60 * 60 * 1000L // 24 hours
