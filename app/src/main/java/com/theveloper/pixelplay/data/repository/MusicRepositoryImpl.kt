@@ -83,6 +83,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.CoroutineScope
+import com.theveloper.pixelplay.data.database.SourceType
+import com.theveloper.pixelplay.data.database.FavoritesEntity
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -99,7 +102,7 @@ class MusicRepositoryImpl @Inject constructor(
     private val songRepository: SongRepository,
     private val favoritesDao: FavoritesDao,
     private val artistImageRepository: ArtistImageRepository,
-    private val folderTreeBuilder: FolderTreeBuilder
+    private val folderTreeBuilder: FolderTreeBuilder,
     private val navidromeApiService: dagger.Lazy<com.theveloper.pixelplay.data.network.navidrome.NavidromeApiService>
 ) : MusicRepository {
 
@@ -831,20 +834,6 @@ class MusicRepositoryImpl @Inject constructor(
             applyDirectoryFilter = filter.applyFilter,
             filterMode = StorageFilter.ALL.toFilterMode()
         ).first().map { it.toArtist() }
-    }
-
-    override suspend fun setFavoriteStatus(songId: String, isFavorite: Boolean) = withContext(Dispatchers.IO) {
-        val id = songId.toLongOrNull() ?: return@withContext
-        if (isFavorite) {
-            favoritesDao.setFavorite(
-                com.theveloper.pixelplay.data.database.FavoritesEntity(
-                    songId = id,
-                    isFavorite = true
-                )
-            )
-        } else {
-            favoritesDao.removeFavorite(id)
-        }
     }
 
     override suspend fun getFavoriteSongIdsOnce(): Set<String> = withContext(Dispatchers.IO) {
