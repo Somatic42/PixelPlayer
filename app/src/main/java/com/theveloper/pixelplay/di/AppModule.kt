@@ -382,7 +382,9 @@ object AppModule {
         songRepository: SongRepository,
         favoritesDao: FavoritesDao,
         artistImageRepository: ArtistImageRepository,
-        folderTreeBuilder: FolderTreeBuilder
+        folderTreeBuilder: FolderTreeBuilder,
+        navidromeApiService: Lazy<com.theveloper.pixelplay.data.network.navidrome.NavidromeApiService>
+
     ): MusicRepository {
         return MusicRepositoryImpl(
             context = context,
@@ -397,7 +399,8 @@ object AppModule {
             songRepository = songRepository,
             favoritesDao = favoritesDao,
             artistImageRepository = artistImageRepository,
-            folderTreeBuilder = folderTreeBuilder
+            folderTreeBuilder = folderTreeBuilder,
+            navidromeApiService = navidromeApiService
         )
 
     }

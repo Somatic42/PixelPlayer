@@ -444,6 +444,10 @@ interface MusicDao {
     )
     suspend fun getSongByIdOnce(songId: Long): SongEntity?
 
+    @Query("SELECT * FROM songs WHERE source_type = :sourceType")
+    
+    suspend fun getAllSongsBySourceType(sourceType: Int): List<SongEntity>
+
     @Query(
         "SELECT " + SONG_DETAIL_PROJECTION + """
         FROM songs
