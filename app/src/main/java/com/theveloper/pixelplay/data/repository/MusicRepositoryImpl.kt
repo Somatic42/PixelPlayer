@@ -100,6 +100,7 @@ class MusicRepositoryImpl @Inject constructor(
     private val favoritesDao: FavoritesDao,
     private val artistImageRepository: ArtistImageRepository,
     private val folderTreeBuilder: FolderTreeBuilder
+    private val navidromeApiService: dagger.Lazy<com.theveloper.pixelplay.data.network.navidrome.NavidromeApiService>
 ) : MusicRepository {
 
     companion object {
@@ -287,6 +288,28 @@ class MusicRepositoryImpl @Inject constructor(
 
     override suspend fun getFavoriteSongsOnce(storageFilter: StorageFilter): List<Song> {
         return songRepository.getFavoriteSongsOnce(storageFilter)
+    }
+
+    override suspend fun setFavoriteStatus(songId: String, isFavorite: Boolean) = withContext(Dispatchers.IO) {
+        val id = songId.toLongOrNull() ?: return@withContext
+        if (isFavorite) {
+            favoritesDao.setFavorite(FavoritesEntity(songId = id, isFavorite = true))
+        } else {
+            favoritesDao.removeFavorite(id)
+        }
+
+        val song = musicDao.getSongByIdOnce(id)
+        if (song?.sourceType == SourceType.NAVIDROME) {
+            val navidromeId = song.contentUriString.removePrefix("navidrome://")
+            if (navidromeId.isNotBlank()) {
+                runCatching {
+                    val api = navidromeApiService.get()
+                    if (isFavorite) api.star(id = navidromeId) else api.unstar(id = navidromeId)
+                }.onFailure {
+                    Timber.w(it, "Failed to sync favorite status to Navidrome server")
+                }
+            }
+        }
     }
 
     override suspend fun getFavoriteSongsPage(

@@ -555,6 +555,17 @@ class NavidromeApiService @Inject constructor(
     }
 
     /**
+     * Get all starred songs/albums/artists from the server (OpenSubsonic getStarred2).
+     */
+    suspend fun getStarred2(): Result<List<String>> {
+        return requestAndParse("getStarred2").map { response ->
+            val starred = response.optJSONObject("starred2")
+            val songs = starred?.optJSONArray("song")
+            (0 until (songs?.length() ?: 0)).mapNotNull { songs?.optJSONObject(it)?.optString("id") }
+        }
+    }
+
+    /**
      * Unstar a song, album, or artist.
      */
     suspend fun unstar(id: String? = null, albumId: String? = null, artistId: String? = null): Result<Boolean> {

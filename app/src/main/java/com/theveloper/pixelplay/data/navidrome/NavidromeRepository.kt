@@ -200,6 +200,19 @@ class NavidromeRepository @Inject constructor(
         }
     }
 
+    suspend fun syncFavorites() = withContext(Dispatchers.IO) {
+        api.getStarred2().onSuccess { starredIds ->
+            val starredSet = starredIds.toSet()
+            val allNavidromeSongs = musicDao.getAllSongsBySourceType(SourceType.NAVIDROME) // метод возможно надо добавить
+            allNavidromeSongs.forEach { song ->
+                val navId = song.contentUriString.removePrefix("navidrome://")
+                val shouldBeFavorite = navId in starredSet
+                favoritesDao.setFavorite(FavoritesEntity(songId = song.id, isFavorite = shouldBeFavorite))
+                // либо removeFavorite если false, смотря как хочешь мерджить
+            }
+        }
+    }
+
     /**
      * Logout and clear all cached data.
      */
